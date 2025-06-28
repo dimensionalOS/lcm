@@ -10,11 +10,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef _MSC_VER
-#include <lcm/windows/WinPorting.h>
-#else
 #include <unistd.h>
-#endif
 
 #include "lcmgen.h"
 
@@ -344,7 +340,7 @@ static void _flush_read_struct_fmt(const lcmgen_t *lcm, FILE *f, GQueue *formats
 
 static void emit_python_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
-    emit(1, "@staticmethod");
+    emit(1, "@classmethod");
     emit(1, "def _decode_one(buf):");
     emit(2, "self = %s()", structure->structname->shortname);
 
@@ -443,7 +439,7 @@ static void emit_python_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *s
 static void emit_python_decode(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
     // clang-format off
-    emit(1, "@staticmethod");
+    emit(1, "@classmethod");
     emit(1, "def decode(data: bytes):");
     emit(2,     "if hasattr(data, 'read'):");
     emit(3,         "buf = data");
@@ -687,7 +683,7 @@ static void emit_python_init(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structu
 static void emit_python_fingerprint(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
     const char *short_name = structure->structname->shortname;
-    emit(1, "@staticmethod");
+    emit(1, "@classmethod");
     emit(1, "def _get_hash_recursive(parents):");
     emit(2, "if %s in parents: return 0", short_name);
     for (unsigned int m = 0; m < structure->members->len; m++) {
@@ -721,7 +717,7 @@ static void emit_python_fingerprint(const lcmgen_t *lcm, FILE *f, lcm_struct_t *
     emit(1, "_packed_fingerprint = None");
     emit(0, "");
 
-    emit(1, "@staticmethod");
+    emit(1, "@classmethod");
     emit(1, "def _get_packed_fingerprint():");
     emit(2,     "if %s._packed_fingerprint is None:", short_name);
     emit(3,         "%s._packed_fingerprint = struct.pack("
@@ -978,11 +974,11 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit(2,     "self.value = value");
         fprintf(f, "\n");
 
-        emit(1, "@staticmethod");
+        emit(1, "@classmethod");
         emit(1, "def _get_hash_recursive(parents):");
         emit(2,     "return 0x%"PRIx64, enumeration->hash);
 
-        emit(1, "@staticmethod");
+        emit(1, "@classmethod");
         emit(1, "def _get_packed_fingerprint():");
         emit(2,     "return %s._packed_fingerprint", enumeration->enumname->shortname);
         fprintf(f, "\n");
@@ -994,7 +990,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit(2,     "buf.write (struct.pack(\">i\", self.value))");
         fprintf(f, "\n");
 
-        emit(1, "@staticmethod");
+        emit(1, "@classmethod");
         emit(1, "def decode(data):");
         emit(2,     "if hasattr (data, 'read'):");
         emit(3,         "buf = data");
@@ -1005,7 +1001,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit(2,     "return %s(struct.unpack(\">i\", buf.read(4))[0])", enumeration->enumname->shortname);
 
 
-        emit(1, "@staticmethod");
+        emit(1, "@classmethod");
         emit(1, "def _decode_one(buf):");
         emit(2,     "return %s(struct.unpack(\">i\", buf.read(4))[0])", enumeration->enumname->shortname);
         // clang-format on
