@@ -341,7 +341,7 @@ static void _flush_read_struct_fmt(const lcmgen_t *lcm, FILE *f, GQueue *formats
 static void emit_python_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
     emit(1, "@classmethod");
-    emit(1, "def _decode_one(buf):");
+    emit(1, "def _decode_one(cls, buf):");
     emit(2, "self = %s()", structure->structname->shortname);
 
     GQueue *struct_fmt = g_queue_new();
@@ -440,14 +440,14 @@ static void emit_python_decode(const lcmgen_t *lcm, FILE *f, lcm_struct_t *struc
 {
     // clang-format off
     emit(1, "@classmethod");
-    emit(1, "def decode(data: bytes):");
+    emit(1, "def decode(cls, data: bytes):");
     emit(2,     "if hasattr(data, 'read'):");
     emit(3,         "buf = data");
     emit(2,     "else:");
     emit(3,         "buf = BytesIO(data)");
-    emit(2,     "if buf.read(8) != %s._get_packed_fingerprint():", structure->structname->shortname);
+    emit(2,     "if buf.read(8) != cls._get_packed_fingerprint():");
     emit(3,         "raise ValueError(\"Decode error\")");
-    emit(2,     "return %s._decode_one(buf)", structure->structname->shortname);
+    emit(2,     "return cls._decode_one(buf)");
     fprintf (f, "\n");
     // clang-format on
 }
@@ -684,12 +684,12 @@ static void emit_python_fingerprint(const lcmgen_t *lcm, FILE *f, lcm_struct_t *
 {
     const char *short_name = structure->structname->shortname;
     emit(1, "@classmethod");
-    emit(1, "def _get_hash_recursive(parents):");
-    emit(2, "if %s in parents: return 0", short_name);
+    emit(1, "def _get_hash_recursive(cls, parents):");
+    emit(2, "if cls in parents: return 0");
     for (unsigned int m = 0; m < structure->members->len; m++) {
         lcm_member_t *member = (lcm_member_t *) g_ptr_array_index(structure->members, m);
         if (!lcm_is_primitive_type(member->type->lctypename)) {
-            emit(2, "newparents = parents + [%s]", short_name);
+            emit(2, "newparents = parents + [cls]");
             break;
         }
     }
@@ -718,17 +718,17 @@ static void emit_python_fingerprint(const lcmgen_t *lcm, FILE *f, lcm_struct_t *
     emit(0, "");
 
     emit(1, "@classmethod");
-    emit(1, "def _get_packed_fingerprint():");
-    emit(2,     "if %s._packed_fingerprint is None:", short_name);
-    emit(3,         "%s._packed_fingerprint = struct.pack("
-                             "\">Q\", %s._get_hash_recursive([]))", short_name, short_name);
-    emit(2,     "return %s._packed_fingerprint", short_name);
+    emit(1, "def _get_packed_fingerprint(cls):");
+    emit(2,     "if cls._packed_fingerprint is None:");
+    emit(3,         "cls._packed_fingerprint = struct.pack("
+                             "\">Q\", cls._get_hash_recursive([]))");
+    emit(2,     "return cls._packed_fingerprint");
     // clang-format off
     fprintf (f, "\n");
 
     emit(1, "def get_hash(self):");
     emit(2,     "\"\"\"Get the LCM hash of the struct\"\"\"");
-    emit(2,     "return struct.unpack(\">Q\", %s._get_packed_fingerprint())[0]", short_name);
+    emit(2,     "return struct.unpack(\">Q\", cls._get_packed_fingerprint())[0]");
     fprintf(f, "\n");
 }
 
@@ -975,12 +975,12 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         fprintf(f, "\n");
 
         emit(1, "@classmethod");
-        emit(1, "def _get_hash_recursive(parents):");
+        emit(1, "def _get_hash_recursive(cls, parents):");
         emit(2,     "return 0x%"PRIx64, enumeration->hash);
 
         emit(1, "@classmethod");
-        emit(1, "def _get_packed_fingerprint():");
-        emit(2,     "return %s._packed_fingerprint", enumeration->enumname->shortname);
+        emit(1, "def _get_packed_fingerprint(cls):");
+        emit(2,     "return cls._packed_fingerprint");
         fprintf(f, "\n");
 
         emit(1, "def encode(self):");
@@ -991,19 +991,19 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         fprintf(f, "\n");
 
         emit(1, "@classmethod");
-        emit(1, "def decode(data):");
+        emit(1, "def decode(cls, data):");
         emit(2,     "if hasattr (data, 'read'):");
         emit(3,         "buf = data");
         emit(2,     "else:");
         emit(3,         "buf = BytesIO(data)");
-        emit(2,     "if buf.read(8) != %s._packed_fingerprint:", enumeration->enumname->shortname);
+        emit(2,     "if buf.read(8) != cls._packed_fingerprint:");
         emit(3,         "raise ValueError(\"Decode error\")");
-        emit(2,     "return %s(struct.unpack(\">i\", buf.read(4))[0])", enumeration->enumname->shortname);
+        emit(2,     "return cls(struct.unpack(\">i\", buf.read(4))[0])");
 
 
         emit(1, "@classmethod");
-        emit(1, "def _decode_one(buf):");
-        emit(2,     "return %s(struct.unpack(\">i\", buf.read(4))[0])", enumeration->enumname->shortname);
+        emit(1, "def _decode_one(cls, buf):");
+        emit(2,     "return cls(struct.unpack(\">i\", buf.read(4))[0])");
         // clang-format on
 
         fprintf(f, "\n");
