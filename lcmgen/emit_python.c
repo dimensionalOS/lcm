@@ -116,9 +116,9 @@ static void emit_member_comment(FILE *f, int indent, const char *comment,
 
     if (num_lines == 0) {
         fprintf(f, "%*s", INDENT(2), "");
-        fprintf(f, "\"\"\" ");
+        fprintf(f, "# ");
         emit_type_comment(f, structure_member);
-        fprintf(f, " \"\"\"");
+        fprintf(f, "\n");
 
     } else {
         emit(indent, "\"\"\"");
@@ -663,17 +663,23 @@ static void emit_member_initializer(const lcmgen_t *lcm, FILE *f, lcm_member_t *
 
 static void emit_python_init(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
-    fprintf(f, "    def __init__(self):\n");
+    fprintf(f, "    def __init__(self");
+
     unsigned int m;
     for (m = 0; m < structure->members->len; m++) {
         lcm_member_t *member = (lcm_member_t *) g_ptr_array_index(structure->members, m);
-        fprintf(f, "        self.%s = ", member->membername);
-
+        fprintf(f, ", %s=", member->membername);
         emit_member_initializer(lcm, f, member, 0);
-        fprintf(f, "\n");
-        emit_member_comment(f, 2, member->comment, member);
-        fprintf(f, "\n");
     }
+        
+    fprintf(f, "):\n");
+
+    for (m = 0; m < structure->members->len; m++) {
+        lcm_member_t *member = (lcm_member_t *) g_ptr_array_index(structure->members, m);
+        emit_member_comment(f, 2, member->comment, member);
+        fprintf(f, "        self.%s = %s\n", member->membername, member->membername);
+    }
+    
     if (0 == m) {
         fprintf(f, "        pass\n");
     }
@@ -1053,6 +1059,8 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         fprintf(f, "class %s(object):\n", structure->structname->shortname);
         emit_comment(f, 1, structure->comment);
         fprintf(f, "\n");
+
+        fprintf(f, "    name = \"%s\"\n\n", structure->structname->lctypename);
 
         fprintf(f, "    __slots__ = [");
         for (unsigned int m = 0; m < structure->members->len; m++) {
