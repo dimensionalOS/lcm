@@ -342,7 +342,7 @@ static void emit_python_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *s
 {
     emit(1, "@classmethod");
     emit(1, "def _decode_one(cls, buf):");
-    emit(2, "self = %s()", structure->structname->shortname);
+    emit(2, "self = cls()");
 
     GQueue *struct_fmt = g_queue_new();
     GQueue *struct_members = g_queue_new();
@@ -440,7 +440,7 @@ static void emit_python_decode(const lcmgen_t *lcm, FILE *f, lcm_struct_t *struc
 {
     // clang-format off
     emit(1, "@classmethod");
-    emit(1, "def decode(cls, data: bytes):");
+    emit(1, "def lcm_decode(cls, data: bytes):");
     emit(2,     "if hasattr(data, 'read'):");
     emit(3,         "buf = data");
     emit(2,     "else:");
@@ -603,7 +603,7 @@ static void emit_python_encode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *s
 
 static void emit_python_encode(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
 {
-    emit(1, "def encode(self):");
+    emit(1, "def lcm_encode(self):");
     emit(2, "buf = BytesIO()");
     emit(2, "buf.write(%s._get_packed_fingerprint())", structure->structname->shortname);
     emit(2, "self._encode_one(buf)");
@@ -989,7 +989,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit(2,     "return cls._packed_fingerprint");
         fprintf(f, "\n");
 
-        emit(1, "def encode(self):");
+        emit(1, "def lcm_encode(self):");
         emit(2,     "return struct.pack(\">Qi\", 0x%"PRIx64", self.value)", enumeration->hash);
 
         emit(1, "def _encode_one(self, buf):");
@@ -997,7 +997,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         fprintf(f, "\n");
 
         emit(1, "@classmethod");
-        emit(1, "def decode(cls, data):");
+        emit(1, "def lcm_decode(cls, data):");
         emit(2,     "if hasattr (data, 'read'):");
         emit(3,         "buf = data");
         emit(2,     "else:");
@@ -1060,7 +1060,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit_comment(f, 1, structure->comment);
         fprintf(f, "\n");
 
-        fprintf(f, "    name = \"%s\"\n\n", structure->structname->lctypename);
+        fprintf(f, "    msg_name = \"%s\"\n\n", structure->structname->lctypename);
 
         fprintf(f, "    __slots__ = [");
         for (unsigned int m = 0; m < structure->members->len; m++) {
