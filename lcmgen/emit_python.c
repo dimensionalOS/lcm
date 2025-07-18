@@ -240,7 +240,6 @@ static void _emit_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structu
 {
     const char *type_name = structure_member->type->lctypename;
     const char *member_name = structure_member->membername;
-    const char *short_name = structure_member->type->shortname;
     if (!strcmp("string", type_name)) {
         emit(indent, "__%s_len = struct.unpack('>I', buf.read(4))[0]", member_name);
         emit(indent, "%sbuf.read(__%s_len)[:-1].decode('utf-8', 'replace')%s", accessor,
@@ -262,11 +261,9 @@ static void _emit_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structu
     } else if (!strcmp("double", type_name)) {
         emit(indent, "%sstruct.unpack('>d', buf.read(8))[0]%s", accessor, sfx);
     } else {
-        if (is_same_type(structure_member->type, structure->structname)) {
-            emit(indent, "%s%s._decode_one(buf)%s", accessor, short_name, sfx);
-        } else {
-            emit(indent, "%s%s._decode_one(buf)%s", accessor, type_name, sfx);
-        }
+        // For non-primitive types, use _get_field_type to allow type overrides
+        emit(indent, "%scls._get_field_type('%s')._decode_one(buf)%s", 
+             accessor, structure_member->membername, sfx);
     }
 }
 
@@ -433,6 +430,23 @@ static void emit_python_decode_one(const lcmgen_t *lcm, FILE *f, lcm_struct_t *s
 
     g_queue_free(struct_fmt);
     g_queue_free(struct_members);
+    fprintf(f, "\n");
+}
+
+static void emit_python_get_field_type(const lcmgen_t *lcm, FILE *f, lcm_struct_t *structure)
+{
+    emit(1, "@classmethod");
+    emit(1, "def _get_field_type(cls, field_name):");
+    emit(2, "\"\"\"Get the type for a field from annotations.\"\"\"");
+    emit(2, "annotation = cls.__annotations__.get(field_name)");
+    emit(2, "if annotation is None:");
+    emit(3, "return None");
+    emit(2, "if isinstance(annotation, str):");
+    emit(3, "module = sys.modules[cls.__module__]");
+    emit(3, "if hasattr(module, annotation):");
+    emit(4, "return getattr(module, annotation)");
+    emit(3, "return None");
+    emit(2, "return annotation");
     fprintf(f, "\n");
 }
 
@@ -1052,7 +1066,8 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         fprintf(f,
                 "\n"
                 "from io import BytesIO\n"
-                "import struct\n\n");
+                "import struct\n"
+                "import sys\n\n");
 
         emit_python_dependencies(lcm, f, structure, write_init_py);
 
@@ -1100,6 +1115,29 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
             fprintf(f, "%s", has_more ? ", " : "");
         }
         fprintf(f, "]\n\n");
+        
+        // Generate type annotations for each field
+        for (unsigned int m = 0; m < structure->members->len; m++) {
+            lcm_member_t *member = (lcm_member_t *) g_ptr_array_index(structure->members, m);
+            fprintf(f, "    %s: ", member->membername);
+            
+            // For non-primitive types
+            if (!lcm_is_primitive_type(member->type->lctypename)) {
+                if (is_same_type(member->type, structure->structname)) {
+                    // Self-referencing type - use quotes for forward reference
+                    fprintf(f, "'%s'", member->type->shortname);
+                } else {
+                    fprintf(f, "%s", member->type->lctypename);
+                }
+            } else {
+                // For primitive types, we could map to Python types but for now use string
+                fprintf(f, "'%s'", member->type->lctypename);
+            }
+            fprintf(f, "\n");
+        }
+        if (structure->members->len > 0) {
+            fprintf(f, "\n");
+        }
 
         // CONSTANTS
         for (unsigned int ii = 0; ii < g_ptr_array_size(structure->constants); ii++) {
@@ -1117,6 +1155,7 @@ emit_package (lcmgen_t *lcm, _package_contents_t *package)
         emit_python_encode_one(lcm, f, structure);
         emit_python_decode(lcm, f, structure);
         emit_python_decode_one(lcm, f, structure);
+        emit_python_get_field_type(lcm, f, structure);
         emit_python_fingerprint(lcm, f, structure);
         fclose(f);
     }
