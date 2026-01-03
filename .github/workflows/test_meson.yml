@@ -17,6 +17,7 @@ jobs:
 
     - name: Install Dependencies
       run: |
+        sudo apt update
         sudo apt install liblua5.3-dev lua5.3 libjchart2d-java libglib2.0-dev meson
 
     - name: Setup Meson
@@ -93,7 +94,7 @@ jobs:
   macos:
     strategy:
       matrix:
-        os: [macos-13, macos-14]
+        os: [macos-14, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -111,7 +112,7 @@ jobs:
       run: ninja -C ${{github.workspace}}/build
 
     - name: Test
-      run : '${{github.workspace}}/build/liblcm-test/lcm-tester | grep "LCM: OK!"'
+      run : 'sudo ${{github.workspace}}/build/liblcm-test/lcm-tester | grep "LCM: OK!"'
 
     - name: Install
       run : sudo ninja -C ${{github.workspace}}/build install
@@ -138,7 +139,7 @@ jobs:
   windows:
     strategy:
       matrix:
-        os: [windows-2019, windows-2022]
+        os: [windows-2022, windows-2025]
 
     runs-on: ${{ matrix.os }}
 
@@ -161,13 +162,13 @@ jobs:
           glib2:p
           gtest:p
           meson:p
-  
+
     - name: Setup Meson
       run: meson setup build --prefix /mingw64/
 
     - name: Build
       run: ninja -C build
-    
+
     - name: Install
       run: ninja -C build install
 

@@ -20,7 +20,7 @@ def _impl(ctx):
     arguments = [
         "--python",
         "--ppath=" + output_dir,
-    ]
+    ] + ctx.attr.args
 
     # Run lcm-gen.
     ctx.actions.run(
@@ -45,9 +45,10 @@ lcm_py_library_srcs = rule(
             providers = [LcmInfo],
         ),
         "lcmgen": attr.label(
-            cfg = "host",
+            cfg = "exec",
             executable = True,
             default = Label("//lcmgen:lcm-gen"),
         ),
+        "args": attr.string_list(),
     },
 )
